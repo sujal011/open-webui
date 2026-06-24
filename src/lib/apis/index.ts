@@ -383,7 +383,7 @@ export const getTaskIdsByChatId = async (token: string, chat_id: string) => {
 	return res;
 };
 
-export const getToolServerData = async (token: string, url: string) => {
+export const getToolServerData = async (token: string, url: string, customHeaders: Record<string, string> = {}) => {
 	let error = null;
 
 	const res = await fetch(`${url}`, {
@@ -392,7 +392,8 @@ export const getToolServerData = async (token: string, url: string) => {
 		headers: {
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
-			...(token && { authorization: `Bearer ${token}` })
+			...(token && { authorization: `Bearer ${token}` }),
+			...customHeaders
 		}
 	})
 		.then(async (res) => {
@@ -439,8 +440,8 @@ export const getToolServersData = async (servers: object[]) => {
 					const auth_type = server?.auth_type ?? 'bearer';
 					if (auth_type === 'bearer') {
 						toolServerToken = server?.key;
-					} else if (auth_type === 'none') {
-						// No authentication
+					} else if (auth_type === 'none' || auth_type === 'custom') {
+						// No standard authentication or custom headers
 					} else if (auth_type === 'session') {
 						toolServerToken = localStorage.token;
 					}
@@ -453,7 +454,8 @@ export const getToolServersData = async (servers: object[]) => {
 							toolServerToken,
 							(server?.path ?? '').includes('://')
 								? server?.path
-								: `${server?.url}${(server?.path ?? '').startsWith('/') ? '' : '/'}${server?.path}`
+								: `${server?.url}${(server?.path ?? '').startsWith('/') ? '' : '/'}${server?.path}`,
+							server?.headers ?? {}
 						).catch((err) => {
 							error = err;
 							return null;
@@ -536,7 +538,8 @@ export const executeToolServer = async (
 	name: string,
 	params: Record<string, any>,
 	serverData: { openapi: any; info: any; specs: any },
-	sessionId?: string
+	sessionId?: string,
+	customHeaders?: Record<string, string>
 ) => {
 	let error = null;
 
@@ -608,7 +611,7 @@ export const executeToolServer = async (
 
 		// Replace path parameters (`{param}`)
 		Object.entries(pathParams).forEach(([key, value]) => {
-			finalUrl = finalUrl.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(value));
+			finalUrl = finalUrl.replace(new RegExp(`{${key}}`, 'g'), encodeURIComponent(value as string));
 		});
 
 		// Append query parameters to URL if any
@@ -633,7 +636,8 @@ export const executeToolServer = async (
 		// Prepare headers and request options
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
-			...(token && { authorization: `Bearer ${token}` })
+			...(token && { authorization: `Bearer ${token}` }),
+			...(customHeaders || {})
 		};
 		if (sessionId) headers['X-Session-Id'] = sessionId;
 

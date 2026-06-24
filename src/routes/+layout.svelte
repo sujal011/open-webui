@@ -402,7 +402,8 @@
 					url: terminalServer.url,
 					auth_type: terminalServer.auth_type ?? 'bearer',
 					key: terminalServer.key ?? '',
-					path: terminalServer.path ?? '/openapi.json'
+					path: terminalServer.path ?? '/openapi.json',
+					headers: terminalServer.headers ?? {}
 				};
 			}
 		}
@@ -412,17 +413,20 @@
 			$terminalServers?.find((server) => server.url === serverUrl);
 
 		let token = null;
+		let customHeaders = null;
 		if (toolServer) {
 			const auth_type = toolServer?.auth_type ?? 'bearer';
 			if (auth_type === 'bearer') token = toolServer?.key;
 			else if (auth_type === 'session') token = localStorage.token;
+
+			if (toolServer.headers) customHeaders = toolServer.headers;
 		}
 
-		return { toolServer, toolServerData, token };
+		return { toolServer, toolServerData, token, customHeaders };
 	};
 
 	const executeTool = async (data, cb, chatId) => {
-		const { toolServer, toolServerData, token } = resolveToolServer(data.server?.url);
+		const { toolServer, toolServerData, token, customHeaders } = resolveToolServer(data.server?.url);
 
 		console.log('executeTool', data, toolServer);
 
@@ -433,7 +437,8 @@
 				data?.name,
 				data?.params,
 				toolServerData,
-				chatId
+				chatId,
+				customHeaders
 			);
 
 			console.log('executeToolServer', res);

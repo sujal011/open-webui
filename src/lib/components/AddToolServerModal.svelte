@@ -6,7 +6,7 @@
 
 	import { toast } from 'svelte-sonner';
 	import { getContext, onMount } from 'svelte';
-	const i18n = getContext('i18n');
+	const i18n: any = getContext('i18n');
 
 	import { settings } from '$lib/stores';
 	import Modal from '$lib/components/common/Modal.svelte';
@@ -33,7 +33,7 @@
 	export let edit = false;
 
 	export let direct = false;
-	export let connection = null;
+	export let connection: any = null;
 
 	let inputElement = null;
 
@@ -48,6 +48,7 @@
 	let auth_type = 'bearer';
 	let key = '';
 	let headers = '';
+	let headersList: { key: string; value: string }[] = [];
 
 	let functionNameFilterList = '';
 	let accessGrants = [];
@@ -156,8 +157,9 @@
 
 		if (direct) {
 			const res = await getToolServerData(
-				auth_type === 'bearer' ? key : localStorage.token,
-				path.includes('://') ? path : `${url}${path.startsWith('/') ? '' : '/'}${path}`
+				auth_type === 'bearer' ? key : (['none', 'custom'].includes(auth_type) ? '' : localStorage.token),
+				path.includes('://') ? path : `${url}${path.startsWith('/') ? '' : '/'}${path}`,
+				headers ? JSON.parse(headers) : {}
 			).catch((err) => {
 				toast.error($i18n.t('Connection failed'));
 			});
@@ -222,7 +224,12 @@
 				if (data.path) path = data.path;
 
 				if (data.auth_type) auth_type = data.auth_type;
-				if (data.headers) headers = JSON.stringify(data.headers, null, 2);
+				if (data.headers) {
+					headers = JSON.stringify(data.headers, null, 2);
+					headersList = Object.entries(data.headers).map(([k, v]) => ({ key: k, value: String(v) }));
+				} else {
+					headersList = [];
+				}
 				if (data.key) key = data.key;
 
 				if (data.info) {
@@ -386,6 +393,7 @@
 
 		key = '';
 		auth_type = 'bearer';
+		headersList = [];
 
 		id = '';
 		name = '';
@@ -414,6 +422,11 @@
 
 			auth_type = connection?.auth_type ?? 'bearer';
 			headers = connection?.headers ? JSON.stringify(connection.headers, null, 2) : '';
+			if (connection?.headers && typeof connection.headers === 'object') {
+				headersList = Object.entries(connection.headers).map(([k, v]) => ({ key: k, value: String(v) }));
+			} else {
+				headersList = [];
+			}
 
 			key = connection?.key ?? '';
 
@@ -440,6 +453,25 @@
 	onMount(() => {
 		init();
 	});
+
+	$: {
+		const obj: Record<string, string> = {};
+		for (const item of headersList) {
+			if (item.key.trim()) {
+				obj[item.key.trim()] = item.value;
+			}
+		}
+		const newHeaders = Object.keys(obj).length > 0 ? JSON.stringify(obj, null, 2) : '';
+		if (newHeaders !== headers) {
+			try {
+				if (!headers || JSON.stringify(JSON.parse(headers)) !== JSON.stringify(JSON.parse(newHeaders))) {
+					headers = newHeaders;
+				}
+			} catch (e) {
+				headers = newHeaders;
+			}
+		}
+	}
 </script>
 
 <Modal size="sm" bind:show>
@@ -711,6 +743,7 @@
 											<option value="none">{$i18n.t('None')}</option>
 
 											<option value="bearer">{$i18n.t('Bearer')}</option>
+											<option value="custom">{$i18n.t('Custom Headers')}</option>
 											<option value="session">{$i18n.t('Session')}</option>
 
 											{#if !direct}
@@ -730,6 +763,12 @@
 												placeholder={$i18n.t('API Key')}
 												required={false}
 											/>
+										{:else if auth_type === 'custom'}
+											<div
+												class={`text-xs self-center translate-y-[1px] ${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500'}`}
+											>
+												{$i18n.t('Configure custom headers below')}
+											</div>
 										{:else if auth_type === 'none'}
 											<div
 												class={`text-xs self-center translate-y-[1px] ${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500'}`}
@@ -781,6 +820,57 @@
 								</div>
 							</div>
 						</div>
+
+						{#if auth_type === 'custom'}
+							<div class="flex flex-col gap-1.5 w-full mt-2">
+								<div class="flex justify-between items-center mb-0.5">
+									<div class="text-xs text-gray-500 dark:text-gray-400">
+										{$i18n.t('Custom Headers')}
+									</div>
+								</div>
+
+								<div class="flex flex-col gap-2">
+									{#each headersList as header, index}
+										<div class="flex gap-2 items-center w-full">
+											<input
+												class="w-1/3 text-sm bg-transparent border-b border-gray-100 dark:border-gray-800 focus:border-gray-300 dark:focus:border-gray-700 outline-hidden"
+												type="text"
+												placeholder={$i18n.t('Key')}
+												bind:value={header.key}
+												required
+											/>
+											<input
+												class="flex-1 text-sm bg-transparent border-b border-gray-100 dark:border-gray-800 focus:border-gray-300 dark:focus:border-gray-700 outline-hidden"
+												type="text"
+												placeholder={$i18n.t('Value')}
+												bind:value={header.value}
+												required
+											/>
+											<button
+												type="button"
+												class="p-1 hover:bg-gray-100 dark:hover:bg-gray-850 rounded-lg transition"
+												on:click={() => {
+													headersList = headersList.filter((_, i) => i !== index);
+												}}
+											>
+												<Minus className="size-4" />
+											</button>
+										</div>
+									{/each}
+
+									<button
+										type="button"
+										class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition mt-1 self-start"
+										on:click={() => {
+											headersList = [...headersList, { key: '', value: '' }];
+										}}
+									>
+										<Plus className="size-3.5" />
+										{$i18n.t('Add Header')}
+									</button>
+								</div>
+							</div>
+						{/if}
 
 						<div class="flex items-center justify-between">
 							<button

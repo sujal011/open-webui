@@ -1330,6 +1330,14 @@ async def get_tool_servers_data(servers: list[dict[str, Any]]) -> list[dict[str,
                 # No authentication
                 pass
 
+            headers_to_send = {}
+            if auth_type == 'bearer' and server.get('key'):
+                headers_to_send['Authorization'] = f'Bearer {server.get("key")}'
+
+            custom_headers = server.get('headers')
+            if custom_headers and isinstance(custom_headers, dict):
+                headers_to_send.update(custom_headers)
+
             id = info.get('id')
             if not id:
                 id = str(idx)
@@ -1346,7 +1354,7 @@ async def get_tool_servers_data(servers: list[dict[str, Any]]) -> list[dict[str,
                 # Fetch from URL
                 task = get_tool_server_data(
                     spec_url,
-                    {'Authorization': f'Bearer {token}'} if token else None,
+                    headers_to_send if headers_to_send else None,
                 )
             elif spec_type == 'json' and server.get('spec', ''):
                 # Use provided JSON spec
