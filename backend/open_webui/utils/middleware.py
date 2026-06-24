@@ -2722,14 +2722,80 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                         append=True,
                     )
 
-                tool_specs = tool_server.pop('specs', [])
+                if tool_server.get('type') == 'mcp':
+                    try:
+                        server_id = tool_server.get('info', {}).get('id')
+                        if not server_id:
+                            server_id = tool_server.get('url')
 
-                for tool in tool_specs:
-                    tools_dict[tool['name']] = {
-                        'spec': tool,
-                        'direct': True,
-                        'server': tool_server,
-                    }
+                        headers, _ = await build_tool_server_headers(
+                            tool_server,
+                            request,
+                            user,
+                            server_id=server_id,
+                            metadata=metadata,
+                            extra_params=extra_params,
+                        )
+
+                        client = MCPClient()
+                        await client.connect(
+                            url=tool_server.get('url', ''),
+                            headers=headers if headers else None,
+                        )
+
+                        mcp_clients[server_id] = client
+
+                        tool_specs = await client.list_tool_specs()
+                        function_name_filter_list = tool_server.get('config', {}).get('function_name_filter_list', '')
+                        if isinstance(function_name_filter_list, str) and function_name_filter_list:
+                            function_name_filter_list = function_name_filter_list.split(',')
+                            tool_specs = [
+                                spec
+                                for spec in tool_specs
+                                if is_string_allowed(spec['name'], function_name_filter_list)
+                            ]
+
+                        for tool_spec in tool_specs:
+                            async def make_tool_function(client, function_name):
+                                async def tool_function(**kwargs):
+                                    return await client.call_tool(
+                                        function_name,
+                                        function_args=kwargs,
+                                    )
+                                return tool_function
+
+                            tool_function = await make_tool_function(client, tool_spec['name'])
+
+                            mcp_tool_name = f'{server_id}_{tool_spec["name"]}'
+                            tools_dict[mcp_tool_name] = {
+                                'spec': {
+                                    **tool_spec,
+                                    'name': mcp_tool_name,
+                                },
+                                'callable': tool_function,
+                                'type': 'mcp',
+                                'client': client,
+                                'direct': False,
+                            }
+                    except Exception as e:
+                        log.debug(f"Failed to connect to direct MCP server {tool_server.get('url')}: {e}")
+                        if event_emitter:
+                            await event_emitter(
+                                {
+                                    'type': 'chat:message:error',
+                                    'data': {'error': {'content': f"Failed to connect to MCP server '{tool_server.get('url')}'"}},
+                                }
+                            )
+                        continue
+                else:
+                    tool_specs = tool_server.pop('specs', [])
+
+                    for tool in tool_specs:
+                        tools_dict[tool['name']] = {
+                            'spec': tool,
+                            'direct': True,
+                            'server': tool_server,
+                        }
 
         if mcp_clients:
             metadata['mcp_clients'] = mcp_clients

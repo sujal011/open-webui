@@ -1,6 +1,7 @@
 import { WEBUI_BASE_URL } from '$lib/constants';
 import { convertOpenApiToToolPayload } from '$lib/utils';
 import { getOpenAIModelsDirect } from './openai';
+import { verifyToolServerConnection } from './configs';
 
 const TOOL_SERVER_FETCH_TIMEOUT = 10000;
 
@@ -448,6 +449,27 @@ export const getToolServersData = async (servers: object[]) => {
 
 					let res = null;
 					const specType = server?.spec_type ?? 'url';
+
+					if (server?.type === 'mcp') {
+						const resVal = await verifyToolServerConnection(localStorage.token, server).catch((err) => {
+							error = err;
+							return null;
+						});
+
+						if (resVal && resVal.specs) {
+							return {
+								url: server.url,
+								type: 'mcp',
+								info: server.info ?? {},
+								specs: resVal.specs
+							};
+						} else {
+							return {
+								error: error || 'Failed to connect to MCP tool server',
+								url: server?.url
+							};
+						}
+					}
 
 					if (specType === 'url') {
 						res = await getToolServerData(

@@ -155,7 +155,7 @@
 			}
 		}
 
-		if (direct) {
+		if (direct && type !== 'mcp') {
 			const res = await getToolServerData(
 				auth_type === 'bearer' ? key : (['none', 'custom'].includes(auth_type) ? '' : localStorage.token),
 				path.includes('://') ? path : `${url}${path.startsWith('/') ? '' : '/'}${path}`,
@@ -538,26 +538,20 @@
 								<div class=" text-xs text-gray-500">{$i18n.t('Type')}</div>
 
 								<div class="">
-									{#if !direct}
-										<button
-											on:click={() => {
-												type = ['', 'openapi'].includes(type) ? 'mcp' : 'openapi';
-											}}
-											type="button"
-											class=" text-xs text-gray-700 dark:text-gray-300"
-										>
-											{#if ['', 'openapi'].includes(type)}
-												{$i18n.t('OpenAPI')}
-											{:else if type === 'mcp'}
-												{$i18n.t('MCP')}
-												<span class="text-gray-500">{$i18n.t('Streamable HTTP')}</span>
-											{/if}
-										</button>
-									{:else}
-										<div class="text-xs text-gray-700 dark:text-gray-300">
+									<button
+										on:click={() => {
+											type = ['', 'openapi'].includes(type) ? 'mcp' : 'openapi';
+										}}
+										type="button"
+										class=" text-xs text-gray-700 dark:text-gray-300"
+									>
+										{#if ['', 'openapi'].includes(type)}
 											{$i18n.t('OpenAPI')}
-										</div>
-									{/if}
+										{:else if type === 'mcp'}
+											{$i18n.t('MCP')}
+											<span class="text-gray-500">{$i18n.t('Streamable HTTP')}</span>
+										{/if}
+									</button>
 								</div>
 							</div>
 						</div>
@@ -583,7 +577,7 @@
 									/>
 								</div>
 							</div>
-							{#if !direct}
+							{#if !direct || type === 'mcp'}
 								<div class="flex flex-col flex-1">
 									<div class="flex justify-between mb-0.5">
 										<label
@@ -746,7 +740,7 @@
 											<option value="custom">{$i18n.t('Custom Headers')}</option>
 											<option value="session">{$i18n.t('Session')}</option>
 
-											{#if !direct}
+											{#if !direct || type === 'mcp'}
 												<option value="system_oauth">{$i18n.t('OAuth')}</option>
 												{#if type === 'mcp'}
 													<option value="oauth_2.1">{$i18n.t('OAuth 2.1')}</option>
@@ -1031,58 +1025,53 @@
 								</div>
 							{/if}
 
-							{#if !direct}
-								<div class="flex gap-2 mt-2">
-									<div class="flex flex-col w-full">
-										<label
-											for="headers-input"
-											class={`mb-0.5 text-xs text-gray-500
-									${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100' : ''}`}
-											>{$i18n.t('Headers')}</label
-										>
+							<div class="flex gap-2 mt-2">
+								<div class="flex flex-col w-full">
+									<label
+										for="headers-input"
+										class={`mb-0.5 text-xs text-gray-500
+								${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100' : ''}`}
+										>{$i18n.t('Headers')}</label
+									>
 
-										<div class="flex-1">
-											<Tooltip
-												content={$i18n.t(
-													'Enter additional headers in JSON format (e.g. {"X-Custom-Header": "value"}'
-												)}
-											>
-												<Textarea
-													className="w-full text-sm outline-hidden"
-													bind:value={headers}
-													placeholder={$i18n.t('Enter additional headers in JSON format')}
-													required={false}
-													minSize={30}
-												/>
-											</Tooltip>
-										</div>
+									<div class="flex-1">
+										<Tooltip
+											content={$i18n.t(
+												'Enter additional headers in JSON format (e.g. {"X-Custom-Header": "value"}'
+											)}
+										>
+											<Textarea
+												className="w-full text-sm outline-hidden"
+												bind:value={headers}
+												placeholder={$i18n.t('Enter additional headers in JSON format')}
+												required={false}
+												minSize={30}
+											/>
+										</Tooltip>
 									</div>
 								</div>
-							{/if}
-						{/if}
-
-						{#if !direct}
-							<hr class=" border-gray-100/50 dark:border-gray-700/10 my-2.5 w-full" />
-
-							<div class="flex flex-col w-full mt-2">
-								<label
-									for="function-name-filter-list"
-									class={`mb-1 text-xs ${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100 placeholder:text-gray-700 dark:placeholder:text-gray-100' : 'outline-hidden placeholder:text-gray-300 dark:placeholder:text-gray-700 text-gray-500'}`}
-									>{$i18n.t('Function Name Filter List')}</label
-								>
-
-								<div class="flex-1">
-									<input
-										id="function-name-filter-list"
-										class={`w-full text-sm bg-transparent ${($settings?.highContrastMode ?? false) ? 'placeholder:text-gray-700 dark:placeholder:text-gray-100' : 'outline-hidden placeholder:text-gray-300 dark:placeholder:text-gray-700'}`}
-										type="text"
-										bind:value={functionNameFilterList}
-										placeholder={$i18n.t('Enter function name filter list (e.g. func1, !func2)')}
-										autocomplete="off"
-									/>
-								</div>
 							</div>
-						{/if}
+
+						<hr class=" border-gray-100/50 dark:border-gray-700/10 my-2.5 w-full" />
+
+						<div class="flex flex-col w-full mt-2">
+							<label
+								for="function-name-filter-list"
+								class={`mb-1 text-xs ${($settings?.highContrastMode ?? false) ? 'text-gray-800 dark:text-gray-100 placeholder:text-gray-700 dark:placeholder:text-gray-100' : 'outline-hidden placeholder:text-gray-300 dark:placeholder:text-gray-700 text-gray-500'}`}
+								>{$i18n.t('Function Name Filter List')}</label
+							>
+
+							<div class="flex-1">
+								<input
+									id="function-name-filter-list"
+									class={`w-full text-sm bg-transparent ${($settings?.highContrastMode ?? false) ? 'placeholder:text-gray-700 dark:placeholder:text-gray-100' : 'outline-hidden placeholder:text-gray-300 dark:placeholder:text-gray-700'}`}
+									type="text"
+									bind:value={functionNameFilterList}
+									placeholder={$i18n.t('Enter function name filter list (e.g. func1, !func2)')}
+									autocomplete="off"
+								/>
+							</div>
+						</div>
 					</div>
 
 					{#if type === 'mcp'}

@@ -165,7 +165,7 @@ async def register_oauth_client(
     request: Request,
     form_data: OAuthClientRegistrationForm,
     type: str | None = None,
-    user=Depends(get_admin_user),
+    user=Depends(get_verified_user),
 ):
     try:
         oauth_client_id = form_data.client_id
@@ -533,7 +533,7 @@ async def refresh_terminal_server_terminals(
 
 
 @router.post('/tool_servers/verify')
-async def verify_tool_servers_config(request: Request, form_data: ToolServerConnection, user=Depends(get_admin_user)):
+async def verify_tool_servers_config(request: Request, form_data: ToolServerConnection, user=Depends(get_verified_user)):
     """
     Verify the connection to the tool server.
     """
