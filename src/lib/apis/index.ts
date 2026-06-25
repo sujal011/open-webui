@@ -458,6 +458,7 @@ export const getToolServersData = async (servers: object[]) => {
 
 						if (resVal && resVal.specs) {
 							return {
+								...server,
 								url: server.url,
 								type: 'mcp',
 								info: server.info ?? {},
@@ -505,6 +506,7 @@ export const getToolServersData = async (servers: object[]) => {
 						};
 
 						const result: Record<string, any> = {
+							...server,
 							url: server?.url,
 							openapi: openapi,
 							info: info,
