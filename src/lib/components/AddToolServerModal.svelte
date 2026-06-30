@@ -1051,6 +1051,7 @@
 									</div>
 								</div>
 							</div>
+						{/if}
 
 						<hr class=" border-gray-100/50 dark:border-gray-700/10 my-2.5 w-full" />
 
